@@ -7,8 +7,9 @@ import {
   launchVelocity,
   type PlatformBounds,
 } from "../combat";
+import { CpuBrain, type CpuInput } from "../cpu";
 import { FIGHTERS } from "../fighters";
-import type { FighterId, HitKind } from "../types";
+import type { CpuLevel, FighterId, HitKind } from "../types";
 
 const PLATFORM_WIDTH = 280;
 const PLATFORM_HEIGHT = 24;
@@ -38,6 +39,14 @@ export class FightScene extends Phaser.Scene {
   private platform!: Phaser.Physics.Arcade.StaticGroup;
   private fighters: FighterSlot[] = [];
   private roundOver = false;
+  private cpuLevel: CpuLevel = "easy";
+  private cpuBrain!: CpuBrain;
+  private cpuIntent: CpuInput = {
+    move: 0,
+    jump: false,
+    light: false,
+    heavyHold: false,
+  };
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keys!: {
     A: Phaser.Input.Keyboard.Key;
@@ -50,6 +59,10 @@ export class FightScene extends Phaser.Scene {
 
   constructor() {
     super("FightScene");
+  }
+
+  init(data?: { cpuLevel?: CpuLevel }): void {
+    this.cpuLevel = data?.cpuLevel ?? "easy";
   }
 
   create(): void {
@@ -91,6 +104,8 @@ export class FightScene extends Phaser.Scene {
       K: Phaser.Input.Keyboard.KeyCodes.K,
       SPACE: Phaser.Input.Keyboard.KeyCodes.SPACE,
     }) as FightScene["keys"];
+
+    this.cpuBrain = new CpuBrain(this.cpuLevel);
   }
 
   private spawnFighter(
@@ -136,12 +151,35 @@ export class FightScene extends Phaser.Scene {
     if (this.roundOver) return;
 
     const now = this.time.now;
+    this.tickCpuIntent(now);
+
     for (const fighter of this.fighters) {
       this.updateFighter(fighter, now, delta);
     }
 
     this.checkAttackHits(now);
     this.checkKo(now);
+  }
+
+  private tickCpuIntent(now: number): void {
+    const cpu = this.fighters.find((f) => !f.isPlayer);
+    const player = this.fighters.find((f) => f.isPlayer);
+    if (!cpu || !player) return;
+
+    const body = cpu.sprite.body as Phaser.Physics.Arcade.Body;
+    const grounded =
+      body.blocked.down || body.touching.down || body.onFloor();
+
+    this.cpuIntent = this.cpuBrain.tick(now, {
+      selfX: cpu.sprite.x,
+      foeX: player.sprite.x,
+      selfY: cpu.sprite.y,
+      foeY: player.sprite.y,
+      selfGrounded: grounded,
+      foePercent: player.percent,
+      level: this.cpuLevel,
+      platform: this.platformBounds,
+    });
   }
 
   private updateFighter(fighter: FighterSlot, now: number, delta: number): void {
@@ -157,13 +195,15 @@ export class FightScene extends Phaser.Scene {
 
     if (fighter.isPlayer) {
       this.handlePlayerInput(fighter, now, grounded);
+    } else {
+      this.handleCpuInput(fighter, now, grounded);
     }
 
     this.updateAttackState(fighter, now, delta, grounded);
     fighter.sprite.setFlipX(fighter.facing < 0);
 
     if (!fighter.attacking) {
-      const moveX = fighter.isPlayer ? this.readMoveX() : 0;
+      const moveX = fighter.isPlayer ? this.readMoveX() : this.cpuIntent.move;
       if (moveX !== 0) {
         fighter.facing = moveX > 0 ? 1 : -1;
         fighter.sprite.setVelocityX(moveX * def.speed);
@@ -225,6 +265,45 @@ export class FightScene extends Phaser.Scene {
     }
   }
 
+  private handleCpuInput(
+    fighter: FighterSlot,
+    now: number,
+    grounded: boolean,
+  ): void {
+    const intent = this.cpuIntent;
+
+    if (fighter.attacking) {
+      if (
+        fighter.attackKind === "heavy" &&
+        !intent.heavyHold &&
+        !fighter.attackHitbox
+      ) {
+        fighter.attackCharge = Math.min(
+          1,
+          (now - fighter.attackStartedAt) / HEAVY_CHARGE_MAX_MS,
+        );
+        this.spawnAttackHitbox(fighter);
+      }
+      return;
+    }
+
+    const def = FIGHTERS[fighter.id];
+
+    if (intent.jump && grounded) {
+      fighter.sprite.setVelocityY(-def.jump);
+    }
+
+    if (intent.light) {
+      this.startAttack(fighter, "light", 0, now);
+      return;
+    }
+
+    if (intent.heavyHold) {
+      this.startAttack(fighter, "heavy", 0, now);
+      this.cpuBrain.notifyHeavyStarted(now);
+    }
+  }
+
   private startAttack(
     fighter: FighterSlot,
     kind: HitKind,
@@ -260,6 +339,14 @@ export class FightScene extends Phaser.Scene {
     }
 
     if (fighter.isPlayer && this.keys.K.isDown) {
+      fighter.attackCharge = Math.min(
+        1,
+        (now - fighter.attackStartedAt) / HEAVY_CHARGE_MAX_MS,
+      );
+      return;
+    }
+
+    if (!fighter.isPlayer && this.cpuIntent.heavyHold) {
       fighter.attackCharge = Math.min(
         1,
         (now - fighter.attackStartedAt) / HEAVY_CHARGE_MAX_MS,
