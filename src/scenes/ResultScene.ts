@@ -128,13 +128,32 @@ export class ResultScene extends Phaser.Scene {
 
   private async onShare(): Promise<void> {
     const { winnerId, loserId, winnerPercent, loserPercent } = this.resultData;
-    const blob = await renderShareCard({
+    const cardData = {
       winnerId,
       loserId,
       winnerPercent,
       loserPercent,
       taunt: this.taunt,
-    });
-    await shareOrDownloadPng(blob);
+    };
+    let blob: Blob | null = null;
+    try {
+      blob = await renderShareCard(cardData);
+      await shareOrDownloadPng(blob);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (!blob) {
+        try {
+          blob = await renderShareCard(cardData);
+        } catch {
+          return;
+        }
+      }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "cliff-clash-result.png";
+      link.click();
+      URL.revokeObjectURL(url);
+    }
   }
 }

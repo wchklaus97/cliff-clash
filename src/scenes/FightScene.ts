@@ -13,6 +13,7 @@ import { VirtualPad } from "../input/VirtualPad";
 import type { CpuLevel, FighterId, HitKind } from "../types";
 import {
   HEAVY_CHARGE_MAX_MS,
+  shouldEndHeavyStrike,
   tickPlayerHeavyAttack,
 } from "./playerHeavyInput";
 
@@ -33,6 +34,7 @@ type FighterSlot = {
   attackKind: HitKind | null;
   attackCharge: number;
   attackStartedAt: number;
+  attackReleasedAt: number;
   attackHitbox: Phaser.GameObjects.Rectangle | null;
   attackHitApplied: boolean;
   percentText: Phaser.GameObjects.Text;
@@ -165,6 +167,7 @@ export class FightScene extends Phaser.Scene {
       attackKind: null,
       attackCharge: 0,
       attackStartedAt: 0,
+      attackReleasedAt: 0,
       attackHitbox: null,
       attackHitApplied: false,
       percentText,
@@ -276,7 +279,7 @@ export class FightScene extends Phaser.Scene {
         if (tick) {
           fighter.attackCharge = tick.charge;
           if (tick.spawnHitbox) {
-            this.spawnAttackHitbox(fighter);
+            this.spawnAttackHitbox(fighter, now);
           }
         }
       }
@@ -324,7 +327,7 @@ export class FightScene extends Phaser.Scene {
           1,
           (now - fighter.attackStartedAt) / HEAVY_CHARGE_MAX_MS,
         );
-        this.spawnAttackHitbox(fighter);
+        this.spawnAttackHitbox(fighter, now);
       }
       return;
     }
@@ -356,11 +359,12 @@ export class FightScene extends Phaser.Scene {
     fighter.attackKind = kind;
     fighter.attackCharge = charge;
     fighter.attackStartedAt = now;
+    fighter.attackReleasedAt = 0;
     fighter.attackHitApplied = false;
     fighter.sprite.setVelocityX(0);
 
     if (kind === "light") {
-      this.spawnAttackHitbox(fighter);
+      this.spawnAttackHitbox(fighter, now);
     }
   }
 
@@ -399,23 +403,25 @@ export class FightScene extends Phaser.Scene {
       return;
     }
 
-    if (fighter.attackHitbox && !fighter.attackHitApplied) {
-      this.spawnAttackHitbox(fighter);
-    }
-
-    const elapsed = now - fighter.attackStartedAt;
-    if (elapsed >= HEAVY_CHARGE_MAX_MS + 160) {
-      this.endAttack(fighter);
-    } else if (fighter.attackHitbox) {
-      fighter.attackHitbox.x =
-        fighter.sprite.x + fighter.facing * (BODY_SIZE * 0.75);
-      fighter.attackHitbox.y = fighter.sprite.y;
+    if (fighter.attackHitbox) {
+      if (
+        shouldEndHeavyStrike({
+          attackReleasedAt: fighter.attackReleasedAt,
+          now,
+        })
+      ) {
+        this.endAttack(fighter);
+      } else {
+        fighter.attackHitbox.x =
+          fighter.sprite.x + fighter.facing * (BODY_SIZE * 0.75);
+        fighter.attackHitbox.y = fighter.sprite.y;
+      }
     }
 
     void delta;
   }
 
-  private spawnAttackHitbox(fighter: FighterSlot): void {
+  private spawnAttackHitbox(fighter: FighterSlot, now: number): void {
     if (!fighter.attackKind) return;
 
     const w = fighter.attackKind === "light" ? 22 : 28;
@@ -433,12 +439,17 @@ export class FightScene extends Phaser.Scene {
     fighter.attackHitbox = this.add
       .rectangle(x, y, w, h, 0xff0000, 0.25)
       .setOrigin(0.5);
+
+    if (fighter.attackKind === "heavy") {
+      fighter.attackReleasedAt = now;
+    }
   }
 
   private endAttack(fighter: FighterSlot): void {
     fighter.attacking = false;
     fighter.attackKind = null;
     fighter.attackCharge = 0;
+    fighter.attackReleasedAt = 0;
     fighter.attackHitApplied = false;
     fighter.attackHitbox?.destroy();
     fighter.attackHitbox = null;
