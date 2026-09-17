@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { GAME_WIDTH, GAME_HEIGHT, PIXEL_ART } from "./config";
 import { BootScene } from "./scenes/BootScene";
 import { FightScene } from "./scenes/FightScene";
+import { ResultScene } from "./scenes/ResultScene";
 
 export function createGame(): Phaser.Game {
   return new Phaser.Game({
@@ -20,6 +21,6 @@ export function createGame(): Phaser.Game {
         gravity: { x: 0, y: 0 },
       },
     },
-    scene: [BootScene, FightScene],
+    scene: [BootScene, FightScene, ResultScene],
   });
 }

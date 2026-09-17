@@ -40,6 +40,8 @@ export class FightScene extends Phaser.Scene {
   private platform!: Phaser.Physics.Arcade.StaticGroup;
   private fighters: FighterSlot[] = [];
   private roundOver = false;
+  private playerId: FighterId = "bun";
+  private cpuId: FighterId = "mochi";
   private cpuLevel: CpuLevel = "easy";
   private cpuBrain!: CpuBrain;
   private cpuIntent: CpuInput = {
@@ -63,11 +65,19 @@ export class FightScene extends Phaser.Scene {
     super("FightScene");
   }
 
-  init(data?: { cpuLevel?: CpuLevel }): void {
+  init(data?: {
+    playerId?: FighterId;
+    cpuId?: FighterId;
+    cpuLevel?: CpuLevel;
+  }): void {
+    this.playerId = data?.playerId ?? "bun";
+    this.cpuId = data?.cpuId ?? "mochi";
     this.cpuLevel = data?.cpuLevel ?? "easy";
   }
 
   create(): void {
+    this.fighters = [];
+    this.roundOver = false;
     this.physics.world.gravity.y = 1200;
     this.cameras.main.setBackgroundColor("#87ceeb");
 
@@ -90,8 +100,13 @@ export class FightScene extends Phaser.Scene {
     this.physics.add.existing(platformSprite, true);
     this.platform = this.physics.add.staticGroup(platformSprite);
 
-    this.spawnFighter("bun", left + 60, top - BODY_SIZE / 2, true);
-    this.spawnFighter("mochi", left + PLATFORM_WIDTH - 60, top - BODY_SIZE / 2, false);
+    this.spawnFighter(this.playerId, left + 60, top - BODY_SIZE / 2, true);
+    this.spawnFighter(
+      this.cpuId,
+      left + PLATFORM_WIDTH - 60,
+      top - BODY_SIZE / 2,
+      false,
+    );
 
     for (const fighter of this.fighters) {
       this.physics.add.collider(fighter.sprite, this.platform);
@@ -490,15 +505,15 @@ export class FightScene extends Phaser.Scene {
       console.log(`${FIGHTERS[winner.id].nameEn} wins!`);
 
       this.time.delayedCall(KO_PAUSE_MS, () => {
-        this.add
-          .text(GAME_WIDTH / 2, PLATFORM_Y - 80, `${FIGHTERS[winner.id].nameEn} wins!`, {
-            fontFamily: "monospace",
-            fontSize: "28px",
-            color: "#ffffff",
-            stroke: "#000000",
-            strokeThickness: 4,
-          })
-          .setOrigin(0.5);
+        this.scene.start("ResultScene", {
+          winnerId: winner.id,
+          loserId: fighter.id,
+          winnerPercent: winner.percent,
+          loserPercent: fighter.percent,
+          playerId: this.playerId,
+          cpuId: this.cpuId,
+          cpuLevel: this.cpuLevel,
+        });
       });
 
       void now;
