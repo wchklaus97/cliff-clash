@@ -11,12 +11,15 @@ import { CpuBrain, type CpuInput } from "../cpu";
 import { FIGHTERS } from "../fighters";
 import { VirtualPad } from "../input/VirtualPad";
 import type { CpuLevel, FighterId, HitKind } from "../types";
+import {
+  HEAVY_CHARGE_MAX_MS,
+  tickPlayerHeavyAttack,
+} from "./playerHeavyInput";
 
 const PLATFORM_WIDTH = 280;
 const PLATFORM_HEIGHT = 24;
 const PLATFORM_Y = 460;
 const BODY_SIZE = 28;
-const HEAVY_CHARGE_MAX_MS = 800;
 const KO_PAUSE_MS = 400;
 
 type FighterSlot = {
@@ -260,7 +263,25 @@ export class FightScene extends Phaser.Scene {
     now: number,
     grounded: boolean,
   ): void {
-    if (fighter.attacking) return;
+    const heavyHeld = this.keys.K.isDown || this.virtualPad.isHeavyDown();
+
+    if (fighter.attacking) {
+      if (fighter.attackKind === "heavy") {
+        const tick = tickPlayerHeavyAttack({
+          attackStartedAt: fighter.attackStartedAt,
+          now,
+          heavyHeld,
+          hasHitbox: !!fighter.attackHitbox,
+        });
+        if (tick) {
+          fighter.attackCharge = tick.charge;
+          if (tick.spawnHitbox) {
+            this.spawnAttackHitbox(fighter);
+          }
+        }
+      }
+      return;
+    }
 
     const def = FIGHTERS[fighter.id];
     const jumpPressed =
@@ -281,27 +302,8 @@ export class FightScene extends Phaser.Scene {
       return;
     }
 
-    const heavyDown = this.keys.K.isDown || this.virtualPad.isHeavyDown();
-    if (heavyDown) {
-      if (!fighter.attacking || fighter.attackKind !== "heavy") {
-        this.startAttack(fighter, "heavy", 0, now);
-      } else {
-        const elapsed = now - fighter.attackStartedAt;
-        fighter.attackCharge = Math.min(1, elapsed / HEAVY_CHARGE_MAX_MS);
-      }
-      return;
-    }
-
-    if (
-      fighter.attacking &&
-      fighter.attackKind === "heavy" &&
-      (Phaser.Input.Keyboard.JustUp(this.keys.K) || this.virtualPad.consumeHeavyUp())
-    ) {
-      fighter.attackCharge = Math.min(
-        1,
-        (now - fighter.attackStartedAt) / HEAVY_CHARGE_MAX_MS,
-      );
-      this.spawnAttackHitbox(fighter);
+    if (heavyHeld) {
+      this.startAttack(fighter, "heavy", 0, now);
     }
   }
 
