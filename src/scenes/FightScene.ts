@@ -9,6 +9,7 @@ import {
 } from "../combat";
 import { CpuBrain, type CpuInput } from "../cpu";
 import { FIGHTERS } from "../fighters";
+import { VirtualPad } from "../input/VirtualPad";
 import type { CpuLevel, FighterId, HitKind } from "../types";
 
 const PLATFORM_WIDTH = 280;
@@ -56,6 +57,7 @@ export class FightScene extends Phaser.Scene {
     K: Phaser.Input.Keyboard.Key;
     SPACE: Phaser.Input.Keyboard.Key;
   };
+  private virtualPad!: VirtualPad;
 
   constructor() {
     super("FightScene");
@@ -106,6 +108,10 @@ export class FightScene extends Phaser.Scene {
     }) as FightScene["keys"];
 
     this.cpuBrain = new CpuBrain(this.cpuLevel);
+    this.virtualPad = new VirtualPad(this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.virtualPad.destroy();
+    });
   }
 
   private spawnFighter(
@@ -151,6 +157,7 @@ export class FightScene extends Phaser.Scene {
     if (this.roundOver) return;
 
     const now = this.time.now;
+    this.virtualPad.frameTick();
     this.tickCpuIntent(now);
 
     for (const fighter of this.fighters) {
@@ -216,8 +223,20 @@ export class FightScene extends Phaser.Scene {
 
   private readMoveX(): number {
     let x = 0;
-    if (this.cursors.left?.isDown || this.keys.A.isDown) x -= 1;
-    if (this.cursors.right?.isDown || this.keys.D.isDown) x += 1;
+    if (
+      this.cursors.left?.isDown ||
+      this.keys.A.isDown ||
+      this.virtualPad.isLeftDown()
+    ) {
+      x -= 1;
+    }
+    if (
+      this.cursors.right?.isDown ||
+      this.keys.D.isDown ||
+      this.virtualPad.isRightDown()
+    ) {
+      x += 1;
+    }
     return x;
   }
 
@@ -232,18 +251,23 @@ export class FightScene extends Phaser.Scene {
     const jumpPressed =
       Phaser.Input.Keyboard.JustDown(this.keys.SPACE) ||
       Phaser.Input.Keyboard.JustDown(this.keys.W) ||
-      Phaser.Input.Keyboard.JustDown(this.cursors.up!);
+      Phaser.Input.Keyboard.JustDown(this.cursors.up!) ||
+      this.virtualPad.consumeJump();
 
     if (jumpPressed && grounded) {
       fighter.sprite.setVelocityY(-def.jump);
     }
 
-    if (Phaser.Input.Keyboard.JustDown(this.keys.J)) {
+    if (
+      Phaser.Input.Keyboard.JustDown(this.keys.J) ||
+      this.virtualPad.consumeLight()
+    ) {
       this.startAttack(fighter, "light", 0, now);
       return;
     }
 
-    if (this.keys.K.isDown) {
+    const heavyDown = this.keys.K.isDown || this.virtualPad.isHeavyDown();
+    if (heavyDown) {
       if (!fighter.attacking || fighter.attackKind !== "heavy") {
         this.startAttack(fighter, "heavy", 0, now);
       } else {
@@ -256,7 +280,7 @@ export class FightScene extends Phaser.Scene {
     if (
       fighter.attacking &&
       fighter.attackKind === "heavy" &&
-      Phaser.Input.Keyboard.JustUp(this.keys.K)
+      (Phaser.Input.Keyboard.JustUp(this.keys.K) || this.virtualPad.consumeHeavyUp())
     ) {
       fighter.attackCharge = Math.min(
         1,
@@ -339,7 +363,10 @@ export class FightScene extends Phaser.Scene {
       return;
     }
 
-    if (fighter.isPlayer && this.keys.K.isDown) {
+    if (
+      fighter.isPlayer &&
+      (this.keys.K.isDown || this.virtualPad.isHeavyDown())
+    ) {
       fighter.attackCharge = Math.min(
         1,
         (now - fighter.attackStartedAt) / HEAVY_CHARGE_MAX_MS,
