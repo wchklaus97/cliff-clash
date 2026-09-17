@@ -13,6 +13,6 @@ export class BootScene extends Phaser.Scene {
       const fighter = FIGHTERS[id];
       makeChibiTexture(this, `fighter-${id}`, fighter.palette);
     }
-    this.scene.start("FightScene");
+    this.scene.start("TitleScene");
   }
 }
