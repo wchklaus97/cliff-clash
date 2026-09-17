@@ -1,15 +1,7 @@
 import Phaser from "phaser";
 import { GAME_WIDTH, GAME_HEIGHT, PIXEL_ART } from "./config";
-
-class BootScene extends Phaser.Scene {
-  constructor() {
-    super("BootScene");
-  }
-
-  create(): void {
-    // Temporary empty scene until Task 3
-  }
-}
+import { BootScene } from "./scenes/BootScene";
+import { FightScene } from "./scenes/FightScene";
 
 export function createGame(): Phaser.Game {
   return new Phaser.Game({
@@ -28,6 +20,6 @@ export function createGame(): Phaser.Game {
         gravity: { x: 0, y: 0 },
       },
     },
-    scene: [BootScene],
+    scene: [BootScene, FightScene],
   });
 }
