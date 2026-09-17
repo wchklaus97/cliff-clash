@@ -8,6 +8,8 @@ Built with [Phaser 3](https://phaser.io/) (Arcade Physics) + Vite + TypeScript.
 
 ## Play
 
+**Live:** https://wchklaus97.github.io/cliff-clash/
+
 ```bash
 npm install
 npm run dev
@@ -51,4 +53,4 @@ Do these in order. Grey-box physics is the game; art comes last.
 
 ## License
 
-Game code: keep private unless the owner says otherwise. Phaser is used under its own license (MIT). Original characters and names in this repo are original fiction.
+Game code is public on GitHub. Phaser is used under its own license (MIT). Original characters and names in this repo are original fiction.
