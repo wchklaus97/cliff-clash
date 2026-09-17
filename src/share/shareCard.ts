@@ -46,6 +46,19 @@ function wrapText(
   return currentY;
 }
 
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = new URL(src, document.baseURI).href;
+  });
+}
+
+function loadCover(): Promise<HTMLImageElement | null> {
+  return loadImage("assets/cover.png");
+}
+
 export async function renderShareCard(data: ShareCardData): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = CARD_WIDTH * SCALE;
@@ -58,39 +71,53 @@ export async function renderShareCard(data: ShareCardData): Promise<Blob> {
   const winner = FIGHTERS[data.winnerId];
   const loser = FIGHTERS[data.loserId];
 
-  const sky = ctx.createLinearGradient(0, 0, 0, CARD_HEIGHT);
-  sky.addColorStop(0, "#87ceeb");
-  sky.addColorStop(1, "#5a9fd4");
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+  const cover = await loadCover();
+  if (cover) {
+    ctx.drawImage(cover, 0, 0, CARD_WIDTH, CARD_HEIGHT);
+    ctx.fillStyle = "rgba(20, 12, 24, 0.42)";
+    ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+  } else {
+    const sky = ctx.createLinearGradient(0, 0, 0, CARD_HEIGHT);
+    sky.addColorStop(0, "#87ceeb");
+    sky.addColorStop(1, "#5a9fd4");
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+  }
 
-  ctx.fillStyle = "#6b5344";
-  ctx.fillRect(55, 420, 280, 24);
+  const winnerArt = await loadImage(`assets/fighters/${data.winnerId}-idle.png`);
+  const loserArt = await loadImage(`assets/fighters/${data.loserId}-idle.png`);
+  if (winnerArt) {
+    ctx.drawImage(winnerArt, CARD_WIDTH / 2 - 90, 118, 140, 140);
+  }
+  if (loserArt) {
+    ctx.globalAlpha = 0.7;
+    ctx.drawImage(loserArt, CARD_WIDTH / 2 + 40, 168, 88, 88);
+    ctx.globalAlpha = 1;
+  }
 
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 36px sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("崖邊一擊", CARD_WIDTH / 2, 72);
-
   ctx.font = "bold 28px sans-serif";
   ctx.fillStyle = hexColor(winner.palette.body);
   ctx.strokeStyle = "#000000";
   ctx.lineWidth = 3;
-  ctx.strokeText(winner.nameZh, CARD_WIDTH / 2 - 60, 200);
-  ctx.fillText(winner.nameZh, CARD_WIDTH / 2 - 60, 200);
+  ctx.strokeText(winner.nameZh, CARD_WIDTH / 2 - 60, 88);
+  ctx.fillText(winner.nameZh, CARD_WIDTH / 2 - 60, 88);
 
   ctx.fillStyle = "#ffffff";
   ctx.font = "20px sans-serif";
-  ctx.fillText("VS", CARD_WIDTH / 2, 200);
+  ctx.fillText("VS", CARD_WIDTH / 2, 88);
 
   ctx.font = "bold 28px sans-serif";
   ctx.fillStyle = hexColor(loser.palette.body);
   ctx.strokeStyle = "#000000";
   ctx.lineWidth = 3;
-  ctx.strokeText(loser.nameZh, CARD_WIDTH / 2 + 60, 200);
-  ctx.fillText(loser.nameZh, CARD_WIDTH / 2 + 60, 200);
+  ctx.strokeText(loser.nameZh, CARD_WIDTH / 2 + 60, 88);
+  ctx.fillText(loser.nameZh, CARD_WIDTH / 2 + 60, 88);
 
   ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 36px sans-serif";
+  ctx.fillText("崖邊一擊", CARD_WIDTH / 2, 52);
+
   ctx.font = "bold 48px sans-serif";
   ctx.fillText("KO", CARD_WIDTH / 2, 300);
 

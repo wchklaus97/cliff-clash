@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { GAME_WIDTH, GAME_HEIGHT } from "../config";
+import { SFX, fighterTexture, playSfx } from "../audio";
 import { FIGHTERS } from "../fighters";
 import type { CpuLevel, FighterId } from "../types";
 
@@ -26,6 +27,10 @@ export class SelectScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.add
+      .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, "cover")
+      .setDisplaySize(GAME_WIDTH, GAME_HEIGHT)
+      .setAlpha(0.28);
     this.cameras.main.setBackgroundColor("#1a1a2e");
 
     this.add
@@ -52,19 +57,19 @@ export class SelectScene extends Phaser.Scene {
 
     FIGHTER_IDS.forEach((id, index) => {
       const x = startX + index * (cardWidth + cardGap);
-      const y = 200;
+      const y = 196;
       this.makeFighterCard(id, x, y, cardWidth);
     });
 
     this.add
-      .text(GAME_WIDTH / 2, 310, "CPU 難度", {
+      .text(GAME_WIDTH / 2, 360, "CPU 難度", {
         fontFamily: "sans-serif",
         fontSize: "18px",
         color: "#ffffff",
       })
       .setOrigin(0.5);
 
-    const toggleY = 360;
+    const toggleY = 410;
     const toggleGap = 12;
     this.easyBg = this.makeToggleButton(
       GAME_WIDTH / 2 - 80 - toggleGap / 2,
@@ -82,6 +87,7 @@ export class SelectScene extends Phaser.Scene {
     this.updateCpuToggle();
 
     this.makeButton(GAME_WIDTH / 2, GAME_HEIGHT - 120, "Fight", () => {
+      playSfx(this, SFX.play);
       this.scene.start("FightScene", {
         playerId: this.playerId,
         cpuId: this.cpuId,
@@ -90,6 +96,7 @@ export class SelectScene extends Phaser.Scene {
     });
 
     this.updateCardHighlights();
+    this.time.delayedCall(220, () => playSfx(this, SFX.selectVo, { volume: 0.85 }));
   }
 
   private makeFighterCard(
@@ -99,7 +106,7 @@ export class SelectScene extends Phaser.Scene {
     width: number,
   ): void {
     const fighter = FIGHTERS[id];
-    const height = 140;
+    const height = 148;
 
     const bg = this.add
       .rectangle(x, y, width, height, 0x2d3748, 1)
@@ -107,8 +114,8 @@ export class SelectScene extends Phaser.Scene {
     this.cardBgs.push(bg);
 
     this.add
-      .image(x, y - 28, `fighter-${id}`)
-      .setDisplaySize(56, 56);
+      .image(x, y - 28, fighterTexture(id, "idle"))
+      .setDisplaySize(72, 72);
 
     this.add
       .text(x, y + 24, fighter.nameZh, {
@@ -119,9 +126,17 @@ export class SelectScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(x, y + 48, fighter.nameEn, {
+      .text(x, y + 48, fighter.roleZh, {
+        fontFamily: "sans-serif",
+        fontSize: "11px",
+        color: "#f4d27a",
+      })
+      .setOrigin(0.5);
+
+    this.add
+      .text(x, y + 64, fighter.nameEn, {
         fontFamily: "monospace",
-        fontSize: "12px",
+        fontSize: "11px",
         color: "#aaaaaa",
       })
       .setOrigin(0.5);
@@ -209,7 +224,10 @@ export class SelectScene extends Phaser.Scene {
     bg.setInteractive({ useHandCursor: true });
     bg.on("pointerover", () => bg.setFillStyle(0x718096));
     bg.on("pointerout", () => bg.setFillStyle(0x4a5568));
-    bg.on("pointerdown", onClick);
+    bg.on("pointerdown", () => {
+      playSfx(this, SFX.click);
+      onClick();
+    });
     return container;
   }
 }

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { GAME_WIDTH, GAME_HEIGHT } from "../config";
+import { SFX, fighterTexture, playSfx, playTaunt } from "../audio";
 import { FIGHTERS } from "../fighters";
 import { renderShareCard, shareOrDownloadPng } from "../share/shareCard";
 import { pickTaunt } from "../taunts";
@@ -33,10 +34,18 @@ export class ResultScene extends Phaser.Scene {
     const winner = FIGHTERS[winnerId];
     const loser = FIGHTERS[loserId];
 
-    this.cameras.main.setBackgroundColor("#1a1a2e");
+    this.add
+      .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, "cover")
+      .setDisplaySize(GAME_WIDTH, GAME_HEIGHT)
+      .setTint(0x665544);
+    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x1a1424, 0.38);
 
     this.add
-      .text(GAME_WIDTH / 2, 56, "崖邊一擊", {
+      .image(GAME_WIDTH / 2, 168, fighterTexture(winnerId, "idle"))
+      .setDisplaySize(110, 110);
+
+    this.add
+      .text(GAME_WIDTH / 2, 36, "崖邊一擊", {
         fontFamily: "sans-serif",
         fontSize: "32px",
         color: "#ffffff",
@@ -44,7 +53,7 @@ export class ResultScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(GAME_WIDTH / 2, 120, "KO!", {
+      .text(GAME_WIDTH / 2, 88, "KO!", {
         fontFamily: "monospace",
         fontSize: "48px",
         color: "#ff4444",
@@ -54,7 +63,7 @@ export class ResultScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(GAME_WIDTH / 2, 200, `${winner.nameZh} 勝！`, {
+      .text(GAME_WIDTH / 2, 248, `${winner.nameZh} 勝！`, {
         fontFamily: "sans-serif",
         fontSize: "28px",
         color: "#ffd700",
@@ -66,7 +75,7 @@ export class ResultScene extends Phaser.Scene {
     this.add
       .text(
         GAME_WIDTH / 2,
-        250,
+        268,
         `${winner.nameZh} ${Math.round(winnerPercent)}%  ·  ${loser.nameZh} ${Math.round(loserPercent)}%`,
         {
           fontFamily: "monospace",
@@ -77,7 +86,7 @@ export class ResultScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(GAME_WIDTH / 2, 320, this.taunt, {
+      .text(GAME_WIDTH / 2, 300, this.taunt, {
         fontFamily: "sans-serif",
         fontSize: "18px",
         color: "#fff8dc",
@@ -90,6 +99,9 @@ export class ResultScene extends Phaser.Scene {
     this.makeButton(GAME_WIDTH / 2, buttonY, "再嚟一場", () => this.onReplay());
     this.makeButton(GAME_WIDTH / 2, buttonY + 56, "換角色", () => this.onChange());
     this.makeButton(GAME_WIDTH / 2, buttonY + 112, "分享", () => void this.onShare());
+
+    playSfx(this, SFX.win, { volume: 0.7 });
+    this.time.delayedCall(280, () => playTaunt(this, winnerId));
   }
 
   private makeButton(
@@ -113,7 +125,10 @@ export class ResultScene extends Phaser.Scene {
     bg.setInteractive({ useHandCursor: true });
     bg.on("pointerover", () => bg.setFillStyle(0x718096));
     bg.on("pointerout", () => bg.setFillStyle(0x4a5568));
-    bg.on("pointerdown", onClick);
+    bg.on("pointerdown", () => {
+      playSfx(this, SFX.click);
+      onClick();
+    });
     return container;
   }
 

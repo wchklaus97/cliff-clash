@@ -34,6 +34,7 @@ function drawRoundRect(
   ctx.closePath();
 }
 
+/** Original-IP 32×32 fallback: scarf / leaf / sprout silhouettes, never licensed lookalikes. */
 export function makeChibiTexture(
   scene: Phaser.Scene,
   key: string,
@@ -54,77 +55,56 @@ export function makeChibiTexture(
   const accent = toCss(palette.accent);
 
   ctx.fillStyle = outline;
+  ctx.beginPath();
+  ctx.ellipse(16, 20, 11, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
 
   if (silhouette === "bun") {
     ctx.beginPath();
-    ctx.arc(16, 11, 9, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(16, 23, 10, 8, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = accent;
-    ctx.beginPath();
-    ctx.arc(10, 6, 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(22, 6, 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(11, 18, 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(21, 18, 2, 0, Math.PI * 2);
+    ctx.arc(12, 8, 3, 0, Math.PI * 2);
+    ctx.arc(20, 8, 3, 0, Math.PI * 2);
     ctx.fill();
   } else if (silhouette === "mochi") {
-    drawRoundRect(ctx, 7, 4, 18, 14, 3);
-    ctx.fill();
-    drawRoundRect(ctx, 6, 17, 20, 13, 2);
-    ctx.fill();
     ctx.fillStyle = accent;
-    drawRoundRect(ctx, 5, 3, 6, 5, 1);
+    ctx.beginPath();
+    ctx.ellipse(18, 6, 5, 4, 0.4, 0, Math.PI * 2);
     ctx.fill();
-    drawRoundRect(ctx, 21, 3, 6, 5, 1);
-    ctx.fill();
-    ctx.fillStyle = body;
-    ctx.fillRect(8, 8, 16, 8);
-    ctx.fillStyle = outline;
-    ctx.fillRect(11, 10, 3, 3);
-    ctx.fillRect(18, 10, 3, 3);
-    ctx.fillStyle = accent;
-    ctx.fillRect(9, 20, 4, 3);
-    ctx.fillRect(19, 20, 4, 3);
   } else {
-    drawRoundRect(ctx, 11, 2, 10, 12, 4);
-    ctx.fill();
-    drawRoundRect(ctx, 10, 14, 12, 16, 3);
-    ctx.fill();
     ctx.fillStyle = accent;
-    drawRoundRect(ctx, 9, 1, 4, 5, 1);
+    ctx.fillRect(15, 2, 2, 6);
+    ctx.beginPath();
+    ctx.ellipse(13, 4, 3, 2, -0.5, 0, Math.PI * 2);
     ctx.fill();
-    drawRoundRect(ctx, 19, 1, 4, 5, 1);
+    ctx.beginPath();
+    ctx.ellipse(19, 4, 3, 2, 0.5, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = body;
-    ctx.fillRect(12, 6, 8, 6);
-    ctx.fillStyle = outline;
-    ctx.fillRect(13, 8, 2, 3);
-    ctx.fillRect(17, 8, 2, 3);
-    ctx.fillStyle = accent;
-    ctx.fillRect(12, 22, 3, 4);
-    ctx.fillRect(17, 22, 3, 4);
   }
 
   ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.ellipse(16, 20, 9, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
   if (silhouette === "bun") {
     ctx.beginPath();
-    ctx.arc(16, 11, 7, 0, Math.PI * 2);
+    ctx.arc(12, 8, 2, 0, Math.PI * 2);
+    ctx.arc(20, 8, 2, 0, Math.PI * 2);
     ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(16, 23, 8, 6, 0, 0, Math.PI * 2);
+    ctx.fillStyle = accent;
+    drawRoundRect(ctx, 8, 16, 16, 4, 2);
     ctx.fill();
-    ctx.fillStyle = outline;
-    ctx.fillRect(12, 10, 3, 3);
-    ctx.fillRect(17, 10, 3, 3);
+  } else if (silhouette === "bean") {
+    ctx.fillStyle = accent;
+    drawRoundRect(ctx, 9, 21, 14, 3, 1);
+    ctx.fill();
   }
+
+  ctx.fillStyle = outline;
+  ctx.fillRect(12, 16, 2, 3);
+  ctx.fillRect(18, 16, 2, 3);
+  ctx.fillStyle = "rgb(244,167,185)";
+  ctx.fillRect(10, 19, 2, 2);
+  ctx.fillRect(20, 19, 2, 2);
 
   scene.textures.addCanvas(key, canvas);
 }

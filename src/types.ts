@@ -5,6 +5,8 @@ export type FighterDef = {
   id: FighterId;
   nameEn: string;
   nameZh: string;
+  roleEn: string;
+  roleZh: string;
   speed: number;
   jump: number;
   weight: number;

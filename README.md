@@ -10,6 +10,8 @@ Built with [Phaser 3](https://phaser.io/) (Arcade Physics) + Vite + TypeScript.
 
 **Live:** https://wchklaus97.github.io/cliff-clash/
 
+Character sheets (original IP): `public/assets/sheets/`
+
 ```bash
 npm install
 npm run dev
@@ -47,9 +49,9 @@ Do these in order. Grey-box physics is the game; art comes last.
 
 | Id | Name | Role |
 | --- | --- | --- |
-| bun | Bun / 包子 | balanced |
-| mochi | Mochi / 糯米 | heavy |
-| bean | Bean / 豆豆 | fast / frail |
+| bun | Bun / 包子 / 短耳 | cream dumpling, short ears, red scarf, mallet |
+| mochi | Mochi / 糯米 / 白糰 | rice golem, shiso leaf, no animal ears |
+| bean | Bean / 豆豆 / 小豆 | azuki spirit, sprout antenna, yellow sash |
 
 ## License
 

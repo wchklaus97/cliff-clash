@@ -7,7 +7,7 @@ import { SelectScene } from "./scenes/SelectScene";
 import { TitleScene } from "./scenes/TitleScene";
 
 export function createGame(): Phaser.Game {
-  return new Phaser.Game({
+  const game = new Phaser.Game({
     type: Phaser.AUTO,
     width: GAME_WIDTH,
     height: GAME_HEIGHT,
@@ -23,6 +23,11 @@ export function createGame(): Phaser.Game {
         gravity: { x: 0, y: 0 },
       },
     },
+    audio: {
+      disableWebAudio: false,
+    },
     scene: [BootScene, TitleScene, SelectScene, FightScene, ResultScene],
   });
+  (window as unknown as { __cliffGame?: Phaser.Game }).__cliffGame = game;
+  return game;
 }

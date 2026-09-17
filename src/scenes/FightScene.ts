@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GAME_WIDTH } from "../config";
+import { GAME_HEIGHT, GAME_WIDTH } from "../config";
 import {
   damageForHit,
   hitStunMs,
@@ -11,17 +11,19 @@ import { CpuBrain, type CpuInput } from "../cpu";
 import { FIGHTERS } from "../fighters";
 import { VirtualPad } from "../input/VirtualPad";
 import type { CpuLevel, FighterId, HitKind } from "../types";
+import { SFX, fighterTexture, playSfx } from "../audio";
 import {
   HEAVY_CHARGE_MAX_MS,
   shouldEndHeavyStrike,
   tickPlayerHeavyAttack,
 } from "./playerHeavyInput";
 
-const PLATFORM_WIDTH = 280;
-const PLATFORM_HEIGHT = 24;
-const PLATFORM_Y = 460;
-const BODY_SIZE = 28;
-const KO_PAUSE_MS = 400;
+const PLATFORM_WIDTH = 300;
+const PLATFORM_HEIGHT = 28;
+const PLATFORM_Y = 508;
+const BODY_SIZE = 32;
+const SPRITE_DISPLAY = 78;
+const KO_PAUSE_MS = 520;
 
 type FighterSlot = {
   id: FighterId;
@@ -38,6 +40,7 @@ type FighterSlot = {
   attackHitbox: Phaser.GameObjects.Rectangle | null;
   attackHitApplied: boolean;
   percentText: Phaser.GameObjects.Text;
+  prevGrounded: boolean;
 };
 
 export class FightScene extends Phaser.Scene {
@@ -84,7 +87,11 @@ export class FightScene extends Phaser.Scene {
     this.fighters = [];
     this.roundOver = false;
     this.physics.world.gravity.y = 1200;
-    this.cameras.main.setBackgroundColor("#87ceeb");
+    this.cameras.main.setBackgroundColor("#1a1424");
+    this.add
+      .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, "stage")
+      .setDisplaySize(GAME_WIDTH, GAME_HEIGHT)
+      .setDepth(-20);
 
     const left = (GAME_WIDTH - PLATFORM_WIDTH) / 2;
     const top = PLATFORM_Y - PLATFORM_HEIGHT / 2;
@@ -100,10 +107,12 @@ export class FightScene extends Phaser.Scene {
       PLATFORM_Y,
       PLATFORM_WIDTH,
       PLATFORM_HEIGHT,
-      0x6b5344,
+      0x3d2b1f,
+      0,
     );
     this.physics.add.existing(platformSprite, true);
     this.platform = this.physics.add.staticGroup(platformSprite);
+    playSfx(this, SFX.wind, { loop: true, volume: 0.22 });
 
     this.spawnFighter(this.playerId, left + 60, top - BODY_SIZE / 2, true);
     this.spawnFighter(
@@ -131,6 +140,8 @@ export class FightScene extends Phaser.Scene {
     this.virtualPad = new VirtualPad(this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.virtualPad.destroy();
+      this.sound.stopByKey(SFX.wind);
+      this.sound.stopByKey(SFX.theme);
     });
   }
 
@@ -140,11 +151,26 @@ export class FightScene extends Phaser.Scene {
     y: number,
     isPlayer: boolean,
   ): void {
-    const sprite = this.physics.add.sprite(x, y, `fighter-${id}`);
-    sprite.setDisplaySize(BODY_SIZE, BODY_SIZE);
+    const sprite = this.physics.add.sprite(x, y, fighterTexture(id, "idle"));
+    sprite.setDisplaySize(SPRITE_DISPLAY, SPRITE_DISPLAY);
+    sprite.setOrigin(0.5, 0.82);
     sprite.setCollideWorldBounds(false);
     sprite.setBounce(0);
     sprite.setDrag(800, 0);
+    const body = sprite.body as Phaser.Physics.Arcade.Body;
+    body.setSize(BODY_SIZE, BODY_SIZE);
+    body.setOffset(
+      (sprite.width - BODY_SIZE) / 2,
+      sprite.height * 0.82 - BODY_SIZE,
+    );
+    this.tweens.add({
+      targets: sprite,
+      scaleY: sprite.scaleY * 1.06,
+      yoyo: true,
+      duration: 420,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
 
     const percentText = this.add
       .text(isPlayer ? 16 : GAME_WIDTH - 16, 16, "0%", {
@@ -152,6 +178,17 @@ export class FightScene extends Phaser.Scene {
         fontSize: "20px",
         color: "#ffffff",
         stroke: "#000000",
+        strokeThickness: 3,
+      })
+      .setOrigin(isPlayer ? 0 : 1, 0);
+
+    const def = FIGHTERS[id];
+    this.add
+      .text(isPlayer ? 16 : GAME_WIDTH - 16, 40, `${def.nameZh} ${def.roleZh}`, {
+        fontFamily: "sans-serif",
+        fontSize: "13px",
+        color: "#fff4d6",
+        stroke: "#1a120c",
         strokeThickness: 3,
       })
       .setOrigin(isPlayer ? 0 : 1, 0);
@@ -171,6 +208,7 @@ export class FightScene extends Phaser.Scene {
       attackHitbox: null,
       attackHitApplied: false,
       percentText,
+      prevGrounded: true,
     });
   }
 
@@ -216,6 +254,11 @@ export class FightScene extends Phaser.Scene {
     const body = fighter.sprite.body as Phaser.Physics.Arcade.Body;
     const grounded =
       body.blocked.down || body.touching.down || body.onFloor();
+
+    if (!fighter.prevGrounded && grounded) {
+      playSfx(this, SFX.land, { volume: 0.45 });
+    }
+    fighter.prevGrounded = grounded;
 
     if (now < fighter.hitStunUntil) {
       this.updateAttackState(fighter, now, delta, grounded);
@@ -295,6 +338,7 @@ export class FightScene extends Phaser.Scene {
 
     if (jumpPressed && grounded) {
       fighter.sprite.setVelocityY(-def.jump);
+      playSfx(this, SFX.jump, { volume: 0.7 });
     }
 
     if (
@@ -336,6 +380,7 @@ export class FightScene extends Phaser.Scene {
 
     if (intent.jump && grounded) {
       fighter.sprite.setVelocityY(-def.jump);
+      playSfx(this, SFX.jump, { volume: 0.55 });
     }
 
     if (intent.light) {
@@ -364,7 +409,20 @@ export class FightScene extends Phaser.Scene {
     fighter.sprite.setVelocityX(0);
 
     if (kind === "light") {
+      playSfx(this, SFX.light);
+      this.setPose(fighter, "light");
       this.spawnAttackHitbox(fighter, now);
+    } else {
+      playSfx(this, SFX.heavyCharge, { volume: 0.55 });
+      this.setPose(fighter, "heavy");
+    }
+  }
+
+  private setPose(fighter: FighterSlot, pose: "idle" | "light" | "heavy" | "ko"): void {
+    const key = fighterTexture(fighter.id, pose);
+    if (this.textures.exists(key)) {
+      fighter.sprite.setTexture(key);
+      fighter.sprite.setDisplaySize(SPRITE_DISPLAY, SPRITE_DISPLAY);
     }
   }
 
@@ -437,7 +495,7 @@ export class FightScene extends Phaser.Scene {
     }
 
     fighter.attackHitbox = this.add
-      .rectangle(x, y, w, h, 0xff0000, 0.25)
+      .rectangle(x, y, w, h, 0xffee88, 0)
       .setOrigin(0.5);
 
     if (fighter.attackKind === "heavy") {
@@ -453,6 +511,7 @@ export class FightScene extends Phaser.Scene {
     fighter.attackHitApplied = false;
     fighter.attackHitbox?.destroy();
     fighter.attackHitbox = null;
+    this.setPose(fighter, "idle");
   }
 
   private checkAttackHits(now: number): void {
@@ -496,6 +555,18 @@ export class FightScene extends Phaser.Scene {
     victim.sprite.setVelocity(launch.vx, launch.vy);
     victim.hitStunUntil = now + hitStunMs(kind, victim.percent);
     victim.facing = dirX > 0 ? 1 : -1;
+    victim.sprite.setTint(0xffffff);
+    this.time.delayedCall(70, () => victim.sprite.clearTint());
+    this.cameras.main.shake(kind === "heavy" ? 140 : 60, kind === "heavy" ? 0.01 : 0.004);
+    playSfx(this, kind === "heavy" ? SFX.heavyHit : SFX.light, { volume: 0.85 });
+    playSfx(this, SFX.whoosh, { volume: 0.4 });
+    this.burstVfx(victim.sprite.x, victim.sprite.y - 10, "vfx-hit", kind === "heavy" ? 72 : 48);
+    this.floatDamage(victim.sprite.x, victim.sprite.y - 36, damage);
+    this.hitStop();
+    this.setPose(victim, "ko");
+    this.time.delayedCall(220, () => {
+      if (!this.roundOver) this.setPose(victim, "idle");
+    });
 
     if (kind === "light") {
       this.time.delayedCall(120, () => this.endAttack(attacker));
@@ -514,8 +585,11 @@ export class FightScene extends Phaser.Scene {
 
       this.roundOver = true;
       this.physics.pause();
-
-      console.log(`${FIGHTERS[winner.id].nameEn} wins!`);
+      this.setPose(fighter, "ko");
+      playSfx(this, SFX.ko, { volume: 0.95 });
+      playSfx(this, SFX.koVo, { volume: 0.9 });
+      this.burstVfx(fighter.sprite.x, fighter.sprite.y, "vfx-ko", 96);
+      this.cameras.main.shake(220, 0.014);
 
       this.time.delayedCall(KO_PAUSE_MS, () => {
         this.scene.start("ResultScene", {
@@ -532,5 +606,45 @@ export class FightScene extends Phaser.Scene {
       void now;
       return;
     }
+  }
+
+  private burstVfx(x: number, y: number, key: string, size: number): void {
+    if (!this.textures.exists(key)) return;
+    const img = this.add.image(x, y, key).setDisplaySize(size, size).setDepth(12);
+    this.tweens.add({
+      targets: img,
+      alpha: 0,
+      scale: img.scale * 1.4,
+      duration: 260,
+      onComplete: () => img.destroy(),
+    });
+  }
+
+  private floatDamage(x: number, y: number, damage: number): void {
+    const pop = this.add
+      .text(x, y, `+${Math.round(damage)}`, {
+        fontFamily: "monospace",
+        fontSize: "18px",
+        color: "#ffe566",
+        stroke: "#1a120c",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(14);
+    this.tweens.add({
+      targets: pop,
+      y: y - 44,
+      alpha: 0,
+      duration: 520,
+      onComplete: () => pop.destroy(),
+    });
+  }
+
+  private hitStop(): void {
+    if (this.roundOver) return;
+    this.physics.world.pause();
+    this.time.delayedCall(42, () => {
+      if (!this.roundOver) this.physics.world.resume();
+    });
   }
 }
