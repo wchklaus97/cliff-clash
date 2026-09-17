@@ -179,6 +179,7 @@ export class FightScene extends Phaser.Scene {
       foePercent: player.percent,
       level: this.cpuLevel,
       platform: this.platformBounds,
+      attacking: cpu.attacking,
     });
   }
 

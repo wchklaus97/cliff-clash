@@ -17,6 +17,7 @@ export type CpuSnapshot = {
   foePercent: number;
   level: CpuLevel;
   platform: PlatformBounds;
+  attacking: boolean;
 };
 
 const EDGE_MARGIN = 22;
@@ -48,7 +49,7 @@ export class CpuBrain {
       }
     }
 
-    if (now >= this.nextDecisionAt && !this.heavyHold) {
+    if (now >= this.nextDecisionAt && !this.isHeavyCharging()) {
       this.decide(snap);
       this.nextDecisionAt = now + this.decisionDelay();
     }
@@ -70,6 +71,10 @@ export class CpuBrain {
     this.heavyStartedAt = now;
   }
 
+  private isHeavyCharging(): boolean {
+    return this.heavyHold && this.heavyStartedAt > 0;
+  }
+
   private decisionDelay(): number {
     if (this.level === "easy") {
       return 350 + this.rng() * 200;
@@ -78,6 +83,10 @@ export class CpuBrain {
   }
 
   private decide(snap: CpuSnapshot): void {
+    if (!this.isHeavyCharging()) {
+      this.heavyHold = false;
+    }
+
     const toward = Math.sign(snap.foeX - snap.selfX) as -1 | 0 | 1;
     const dist = Math.abs(snap.foeX - snap.selfX);
     const inRange = dist <= ATTACK_RANGE;
@@ -127,7 +136,7 @@ export class CpuBrain {
     if (inRange) {
       if (this.rng() < 0.42) {
         this.pendingLight = true;
-      } else if (this.rng() < 0.55) {
+      } else if (!snap.attacking && this.rng() < 0.55) {
         this.heavyHold = true;
         this.heavyTargetMs = 400 + this.rng() * 400;
         this.heavyStartedAt = 0;
